@@ -34,7 +34,7 @@ import { EnhancedLink } from './extensions/enhanced-link'
 import { EnhancedMath } from './extensions/enhanced-math'
 import { Placeholder } from './extensions/placeholder'
 import { YamlFrontMatter } from './extensions/yaml-front-matter'
-import { blobToArrayBuffer, compressImage, shouldCompressImage } from './helpers/imageUtils'
+import { blobToArrayBuffer } from './helpers/imageUtils'
 
 const logger = loggerService.withContext('useRichEditor')
 
@@ -479,32 +479,8 @@ export const useRichEditor = (options: UseRichEditorOptions = {}): UseRichEditor
   const handleImagePaste = useCallback(
     async (file: File) => {
       try {
-        let processedFile: File | Blob = file
-        let extension = file.type.split('/')[1] ? `.${file.type.split('/')[1]}` : '.png'
-
-        // 如果图片需要压缩，先进行压缩
-        if (shouldCompressImage(file)) {
-          logger.info('Image needs compression, compressing...', {
-            originalSize: file.size,
-            fileName: file.name
-          })
-
-          processedFile = await compressImage(file, {
-            maxWidth: 1200,
-            maxHeight: 1200,
-            quality: 0.8,
-            outputFormat: file.type.includes('png') ? 'png' : 'jpeg'
-          })
-
-          // 更新扩展名
-          extension = file.type.includes('png') ? '.png' : '.jpg'
-
-          logger.info('Image compressed successfully', {
-            originalSize: file.size,
-            compressedSize: processedFile.size,
-            compressionRatio: (((file.size - processedFile.size) / file.size) * 100).toFixed(1) + '%'
-          })
-        }
+        const processedFile: File | Blob = file
+        const extension = file.type.split('/')[1] ? `.${file.type.split('/')[1]}` : '.png'
 
         // Convert file to buffer
         const arrayBuffer = await blobToArrayBuffer(processedFile)

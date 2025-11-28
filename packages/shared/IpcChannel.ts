@@ -374,5 +374,8 @@ export enum IpcChannel {
   WebSocket_Stop = 'webSocket:stop',
   WebSocket_Status = 'webSocket:status',
   WebSocket_SendFile = 'webSocket:send-file',
-  WebSocket_GetAllCandidates = 'webSocket:get-all-candidates'
+  WebSocket_GetAllCandidates = 'webSocket:get-all-candidates',
+
+  // Doubao
+  Doubao_ASR = 'doubao:asr'
 }

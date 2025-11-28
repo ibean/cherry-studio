@@ -7,6 +7,7 @@ import type {
   ApiServerConfig,
   AssistantsSortType,
   CodeStyleVarious,
+  DoubaoAsrConfig,
   LanguageVarious,
   MathEngine,
   OpenAIServiceTier,
@@ -219,6 +220,7 @@ export interface SettingsState {
   // API Server
   apiServer: ApiServerConfig
   showMessageOutline: boolean
+  doubaoAsr: DoubaoAsrConfig
 }
 
 export type MultiModelMessageStyle = 'horizontal' | 'vertical' | 'fold' | 'grid'
@@ -414,7 +416,12 @@ export const initialState: SettingsState = {
     port: 23333,
     apiKey: `cs-sk-${uuid()}`
   },
-  showMessageOutline: false
+  showMessageOutline: false,
+  doubaoAsr: {
+    appId: '',
+    accessToken: '',
+    resourceId: 'volc.bigasr.auc_turbo'
+  }
 }
 
 const settingsSlice = createSlice({
@@ -852,6 +859,9 @@ const settingsSlice = createSlice({
     },
     setShowMessageOutline: (state, action: PayloadAction<boolean>) => {
       state.showMessageOutline = action.payload
+    },
+    setDoubaoAsr: (state, action: PayloadAction<DoubaoAsrConfig>) => {
+      state.doubaoAsr = action.payload
     }
   }
 })
@@ -983,7 +993,8 @@ export const {
   // API Server actions
   setApiServerEnabled,
   setApiServerPort,
-  setApiServerApiKey
+  setApiServerApiKey,
+  setDoubaoAsr
 } = settingsSlice.actions
 
 export default settingsSlice.reducer

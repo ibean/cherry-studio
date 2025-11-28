@@ -9,7 +9,7 @@ import {
   readTextFileWithAutoEncoding,
   scanDir
 } from '@main/utils/file'
-import { documentExts, imageExts, KB, MB } from '@shared/config/constant'
+import { documentExts, imageExts, KB } from '@shared/config/constant'
 import type { FileMetadata, NotesTreeNode } from '@types'
 import chardet from 'chardet'
 import type { FSWatcher } from 'chokidar'
@@ -26,6 +26,7 @@ import officeParser from 'officeparser'
 import * as path from 'path'
 import { PDFDocument } from 'pdf-lib'
 import { chdir } from 'process'
+import sharp from 'sharp'
 import { v4 as uuidv4 } from 'uuid'
 import WordExtractor from 'word-extractor'
 
@@ -260,25 +261,27 @@ class FileStorage {
 
   private async compressImage(sourcePath: string, destPath: string): Promise<void> {
     try {
-      const stats = fs.statSync(sourcePath)
-      const fileSizeInMB = stats.size / MB
+      const metadata = await sharp(sourcePath).metadata()
 
-      // 如果图片大于1MB才进行压缩
-      if (fileSizeInMB > 1) {
-        try {
-          await fs.promises.copyFile(sourcePath, destPath)
-          logger.debug(`Image compressed successfully: ${sourcePath}`)
-        } catch (jimpError) {
-          logger.error('Image compression failed:', jimpError as Error)
-          await fs.promises.copyFile(sourcePath, destPath)
-        }
+      const width = metadata.width || 0
+      const height = metadata.height || 0
+      const currentPixels = width * height
+      const targetPixels = 1600 * 1600
+
+      if (currentPixels > targetPixels) {
+        // 计算缩放比例
+        const ratio = Math.sqrt(targetPixels / currentPixels)
+        const newWidth = Math.floor(width * ratio)
+
+        await sharp(sourcePath).resize(newWidth).toFile(destPath)
+        logger.info(`Image compressed with sharp: ${sourcePath} -> ${destPath} (ratio: ${ratio.toFixed(2)})`)
       } else {
-        // 小图片直接复制
+        // 如果不需要压缩，直接复制
         await fs.promises.copyFile(sourcePath, destPath)
       }
     } catch (error) {
-      logger.error('Image handling failed:', error as Error)
-      // 错误情况下直接复制原文件
+      logger.error('Image compression failed, fallback to copy:', error as Error)
+      // 降级策略
       await fs.promises.copyFile(sourcePath, destPath)
     }
   }
@@ -288,6 +291,7 @@ class FileStorage {
     const duplicateFile = await this.findDuplicateFile(filePath)
 
     if (duplicateFile) {
+      logger.debug(`[FileStorage] Found duplicate file, returning cached version`)
       return duplicateFile
     }
 
@@ -296,12 +300,14 @@ class FileStorage {
     const ext = path.extname(origin_name).toLowerCase()
     const destPath = path.join(this.storageDir, uuid + ext)
 
-    logger.info(`[FileStorage] Uploading file: ${filePath}`)
+    logger.debug(`[FileStorage] Uploading file: ${filePath}, ext: ${ext}`)
 
     // 根据文件类型选择处理方式
     if (imageExts.includes(ext)) {
+      logger.debug(`[FileStorage] File is image, attempting compression`)
       await this.compressImage(filePath, destPath)
     } else {
+      logger.debug(`[FileStorage] File is not image (ext: ${ext}), copying directly`)
       await fs.promises.copyFile(filePath, destPath)
     }
 
@@ -691,9 +697,9 @@ class FileStorage {
       // 确保 imageData 是 Buffer
       const buffer = Buffer.isBuffer(imageData) ? imageData : Buffer.from(imageData)
 
-      // 如果图片大于1MB，进行压缩处理
-      if (buffer.length > MB) {
-        await this.compressImageBuffer(buffer, destPath, ext)
+      // 如果是图片，进行压缩处理
+      if (imageExts.includes(ext.toLowerCase())) {
+        await this.compressImageBuffer(buffer, destPath)
       } else {
         await fs.promises.writeFile(destPath, buffer)
       }
@@ -717,24 +723,27 @@ class FileStorage {
     }
   }
 
-  private async compressImageBuffer(imageBuffer: Buffer, destPath: string, ext: string): Promise<void> {
+  private async compressImageBuffer(imageBuffer: Buffer, destPath: string): Promise<void> {
     try {
-      // 创建临时文件
-      const tempPath = path.join(this.tempDir, `temp_${uuidv4()}${ext}`)
-      await fs.promises.writeFile(tempPath, imageBuffer)
+      const metadata = await sharp(imageBuffer).metadata()
 
-      // 使用现有的压缩方法
-      await this.compressImage(tempPath, destPath)
+      const width = metadata.width || 0
+      const height = metadata.height || 0
+      const currentPixels = width * height
+      const targetPixels = 1600 * 1600
 
-      // 清理临时文件
-      try {
-        await fs.promises.unlink(tempPath)
-      } catch (error) {
-        logger.warn('Failed to cleanup temp file:', error as Error)
+      if (currentPixels > targetPixels) {
+        const ratio = Math.sqrt(targetPixels / currentPixels)
+        const newWidth = Math.floor(width * ratio)
+
+        await sharp(imageBuffer).resize(newWidth).toFile(destPath)
+
+        logger.info(`Image buffer compressed with sharp to ${destPath}`)
+      } else {
+        await fs.promises.writeFile(destPath, imageBuffer)
       }
     } catch (error) {
-      logger.error('Image buffer compression failed, saving original:', error as Error)
-      // 压缩失败时保存原始文件
+      logger.error('Image buffer compression failed:', error as Error)
       await fs.promises.writeFile(destPath, imageBuffer)
     }
   }
@@ -1393,7 +1402,7 @@ class FileStorage {
 
       await this.stopFileWatcher()
 
-      logger.info('Starting file watcher', {
+      logger.debug('Starting file watcher', {
         path: normalizedPath,
         config: {
           extensions: this.watcherConfig.watchExtensions,
@@ -1438,7 +1447,7 @@ class FileStorage {
           logger.debug('File watcher ready', { path: normalizedPath })
         })
 
-      logger.info('File watcher started successfully')
+      logger.debug('File watcher started successfully')
     } catch (error) {
       logger.error('Failed to start file watcher', error as Error)
       this.cleanup()
@@ -1540,7 +1549,7 @@ class FileStorage {
   public stopFileWatcher = async (): Promise<void> => {
     try {
       if (this.watcher) {
-        logger.info('Stopping file watcher', { path: this.currentWatchPath })
+        logger.debug('Stopping file watcher', { path: this.currentWatchPath })
         await this.watcher.close()
         this.watcher = undefined
         logger.debug('File watcher stopped')

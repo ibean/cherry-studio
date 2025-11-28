@@ -37,6 +37,7 @@ import BackupManager from './services/BackupManager'
 import { codeToolsService } from './services/CodeToolsService'
 import { configManager } from './services/ConfigManager'
 import CopilotService from './services/CopilotService'
+import { doubaoService } from './services/DoubaoService'
 import DxtService from './services/DxtService'
 import { ExportService } from './services/ExportService'
 import { fileStorage as fileManager } from './services/FileStorage'
@@ -1080,4 +1081,12 @@ export function registerIpc(mainWindow: BrowserWindow, app: Electron.App) {
   ipcMain.handle(IpcChannel.APP_CrashRenderProcess, () => {
     mainWindow.webContents.forcefullyCrashRenderer()
   })
+
+  // Doubao ASR
+  ipcMain.handle(
+    IpcChannel.Doubao_ASR,
+    async (_, audioData: string, config: { appId: string; accessToken: string }) => {
+      return await doubaoService.transcribe(audioData, config)
+    }
+  )
 }

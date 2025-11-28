@@ -12,6 +12,7 @@ import db from '@renderer/databases'
 import { useAssistant } from '@renderer/hooks/useAssistant'
 import { useInputText } from '@renderer/hooks/useInputText'
 import { useMessageOperations, useTopicLoading } from '@renderer/hooks/useMessageOperations'
+import { useRuntime } from '@renderer/hooks/useRuntime'
 import { useSettings } from '@renderer/hooks/useSettings'
 import { useShortcut } from '@renderer/hooks/useShortcuts'
 import { useSidebarIconShow } from '@renderer/hooks/useSidebarIcon'
@@ -43,6 +44,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { InputbarCore } from './components/InputbarCore'
+import { VoiceInputButton } from './components/VoiceInputButton'
 import InputbarTools from './InputbarTools'
 import KnowledgeBaseInput from './KnowledgeBaseInput'
 import MentionModelsInput from './MentionModelsInput'
@@ -136,8 +138,10 @@ const InputbarInner: FC<InputbarInnerProps> = ({ assistant: initialAssistant, se
   const showKnowledgeIcon = useSidebarIconShow('knowledge')
   const { assistant, addTopic, model, setModel, updateAssistant } = useAssistant(initialAssistant.id)
   const { sendMessageShortcut, showInputEstimatedTokens, enableQuickPanelTriggers } = useSettings()
+  const { searching } = useRuntime()
   const [estimateTokenCount, setEstimateTokenCount] = useState(0)
   const [contextCount, setContextCount] = useState({ current: 0, max: 0 })
+  const [isVoiceRecording, setIsVoiceRecording] = useState(false)
 
   const { t } = useTranslation()
   const { pauseMessages } = useMessageOperations(topic)
@@ -273,6 +277,19 @@ const InputbarInner: FC<InputbarInnerProps> = ({ assistant: initialAssistant, se
     }
     EventEmitter.emit(EVENT_NAMES.NEW_CONTEXT)
   }, [loading, onPause])
+
+  const onVoiceTranscribe = useCallback(
+    (transcribedText: string) => {
+      setText((prev) => {
+        if (prev && prev.trim().length > 0) {
+          return prev + ' ' + transcribedText
+        }
+        return transcribedText
+      })
+      setTimeoutTimer('onVoiceTranscribe', () => resizeTextArea(), 0)
+    },
+    [resizeTextArea, setText, setTimeoutTimer]
+  )
 
   const addNewTopic = useCallback(async () => {
     const newTopic = getDefaultTopic(assistant.id)
@@ -435,6 +452,11 @@ const InputbarInner: FC<InputbarInnerProps> = ({ assistant: initialAssistant, se
   // rightToolbar: 右侧工具栏
   const rightToolbar = (
     <>
+      <VoiceInputButton
+        onTranscribe={onVoiceTranscribe}
+        onRecordingStateChange={setIsVoiceRecording}
+        disabled={loading || searching}
+      />
       {tokenCountProps && (
         <TokenCount
           estimateTokenCount={tokenCountProps.estimateTokenCount}
@@ -462,6 +484,7 @@ const InputbarInner: FC<InputbarInnerProps> = ({ assistant: initialAssistant, se
       leftToolbar={leftToolbar}
       rightToolbar={rightToolbar}
       topContent={topContent}
+      disabled={isVoiceRecording}
     />
   )
 }

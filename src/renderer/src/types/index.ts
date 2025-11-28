@@ -887,6 +887,12 @@ export type S3Config = {
   maxBackups: number
 }
 
+export type DoubaoAsrConfig = {
+  appId: string
+  accessToken: string
+  resourceId?: string
+}
+
 export type { Message } from './newMessage'
 export * from './tool'
 

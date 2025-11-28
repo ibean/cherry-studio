@@ -65,6 +65,7 @@ export interface InputbarCoreProps {
 
   // Override the user preference for quick panel triggers
   forceEnableQuickPanelTriggers?: boolean
+  disabled?: boolean
 }
 
 const TextareaStyle: CSSProperties = {
@@ -111,7 +112,8 @@ export const InputbarCore: FC<InputbarCoreProps> = ({
   leftToolbar,
   rightToolbar,
   topContent,
-  forceEnableQuickPanelTriggers
+  forceEnableQuickPanelTriggers,
+  disabled
 }) => {
   const config = useMemo(() => getInputbarConfig(scope), [scope])
   const { files, isExpanded } = useInputbarToolsState()
@@ -677,7 +679,7 @@ export const InputbarCore: FC<InputbarCoreProps> = ({
               height: textareaHeight,
               minHeight: '30px'
             }}
-            disabled={isTranslating || searching}
+            disabled={isTranslating || searching || disabled}
             onClick={() => {
               searching && dispatch(setSearching(false))
               quickPanel.close()

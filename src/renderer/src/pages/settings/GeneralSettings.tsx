@@ -9,6 +9,7 @@ import i18n from '@renderer/i18n'
 import type { RootState } from '@renderer/store'
 import { useAppDispatch } from '@renderer/store'
 import {
+  setDoubaoAsr,
   setEnableDataCollection,
   setEnableSpellCheck,
   setLanguage,
@@ -46,10 +47,14 @@ const GeneralSettings: FC = () => {
     enableDataCollection,
     enableSpellCheck,
     disableHardwareAcceleration,
-    setDisableHardwareAcceleration
+    setDisableHardwareAcceleration,
+    doubaoAsr
   } = useSettings()
   const [proxyUrl, setProxyUrl] = useState<string | undefined>(storeProxyUrl)
   const [proxyBypassRules, setProxyBypassRules] = useState<string | undefined>(storeProxyBypassRules)
+  const [doubaoAppId, setDoubaoAppId] = useState(doubaoAsr?.appId || '')
+  const [doubaoAccessToken, setDoubaoAccessToken] = useState(doubaoAsr?.accessToken || '')
+  const [doubaoResourceId, setDoubaoResourceId] = useState(doubaoAsr?.resourceId || 'volc.bigasr.auc_turbo')
   const { theme } = useTheme()
   const { enableDeveloperMode, setEnableDeveloperMode } = useEnableDeveloperMode()
   const { setTimeoutTimer } = useTimer()
@@ -108,6 +113,10 @@ const GeneralSettings: FC = () => {
 
   const onSetProxyBypassRules = () => {
     dispatch(_setProxyBypassRules(proxyBypassRules))
+  }
+
+  const onSetDoubaoAsr = () => {
+    dispatch(setDoubaoAsr({ appId: doubaoAppId, accessToken: doubaoAccessToken, resourceId: doubaoResourceId }))
   }
 
   const proxyModeOptions: { value: 'system' | 'custom' | 'none'; label: string }[] = [
@@ -346,6 +355,44 @@ const GeneralSettings: FC = () => {
               dispatch(setEnableDataCollection(v))
               window.api.config.set('enableDataCollection', v)
             }}
+          />
+        </SettingRow>
+      </SettingGroup>
+      <SettingGroup theme={theme}>
+        <SettingTitle>Voice Input (Doubao ASR)</SettingTitle>
+        <SettingDivider />
+        <SettingRow>
+          <SettingRowTitle>App ID</SettingRowTitle>
+          <Input
+            spellCheck={false}
+            placeholder="App ID"
+            value={doubaoAppId}
+            onChange={(e) => setDoubaoAppId(e.target.value)}
+            style={{ width: 240 }}
+            onBlur={onSetDoubaoAsr}
+          />
+        </SettingRow>
+        <SettingDivider />
+        <SettingRow>
+          <SettingRowTitle>Access Token</SettingRowTitle>
+          <Input.Password
+            placeholder="Access Token"
+            value={doubaoAccessToken}
+            onChange={(e) => setDoubaoAccessToken(e.target.value)}
+            style={{ width: 240 }}
+            onBlur={onSetDoubaoAsr}
+          />
+        </SettingRow>
+        <SettingDivider />
+        <SettingRow>
+          <SettingRowTitle>Resource ID</SettingRowTitle>
+          <Input
+            spellCheck={false}
+            placeholder="volc.bigasr.auc_turbo"
+            value={doubaoResourceId}
+            onChange={(e) => setDoubaoResourceId(e.target.value)}
+            style={{ width: 240 }}
+            onBlur={onSetDoubaoAsr}
           />
         </SettingRow>
       </SettingGroup>

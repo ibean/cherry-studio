@@ -16,7 +16,7 @@ export interface ImageCompressionOptions {
  * @returns 压缩后的图片 Blob
  */
 export async function compressImage(file: File, options: ImageCompressionOptions = {}): Promise<Blob> {
-  const { maxWidth = 1200, maxHeight = 1200, quality = 0.8, outputFormat = 'jpeg' } = options
+  const { maxWidth = 1200, maxHeight = 1200, quality = 1.0, outputFormat = 'jpeg' } = options
 
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -31,16 +31,16 @@ export async function compressImage(file: File, options: ImageCompressionOptions
     img.onload = () => {
       // 计算压缩后的尺寸
       let { width, height } = img
-      const aspectRatio = width / height
 
-      if (width > maxWidth) {
-        width = maxWidth
-        height = width / aspectRatio
-      }
+      // 计算目标像素总量
+      const targetPixels = maxWidth * maxHeight
+      const currentPixels = width * height
 
-      if (height > maxHeight) {
-        height = maxHeight
-        width = height * aspectRatio
+      // 如果当前像素总量超过目标像素总量，则按比例缩小
+      if (currentPixels > targetPixels) {
+        const ratio = Math.sqrt(targetPixels / currentPixels)
+        width = Math.floor(width * ratio)
+        height = Math.floor(height * ratio)
       }
 
       // 设置 canvas 尺寸
@@ -74,13 +74,12 @@ export async function compressImage(file: File, options: ImageCompressionOptions
 }
 
 /**
- * 检查文件是否需要压缩
+ * 检查文件是否需要压缩（实际上是检查是否为图片，以便进行标准化处理）
  * @param file 文件
- * @param maxSize 最大文件大小（字节），默认 1MB
  * @returns 是否需要压缩
  */
-export function shouldCompressImage(file: File, maxSize: number = 1024 * 1024): boolean {
-  return file.size > maxSize && file.type.startsWith('image/')
+export function shouldCompressImage(file: File): boolean {
+  return file.type.startsWith('image/')
 }
 
 /**
